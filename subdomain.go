@@ -139,7 +139,8 @@ func (s *Subdomain) analyseResponse(r *http.Response) {
 	h := sha512.New()
 	h.Write(b.Bytes())
 
-	s.ResponseHash = base64.StdEncoding.EncodeToString(h.Sum(nil))
+	// just use first 12 bytes, its enough
+	s.ResponseHash = string(base64.StdEncoding.EncodeToString(h.Sum(nil))[:12])
 }
 
 func getHTMLTitle(body []byte) string {
