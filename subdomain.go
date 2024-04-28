@@ -342,15 +342,35 @@ func ExportSubdomainsToCSV(f *os.File) {
 	})
 }
 
+// ExportSubdomainToJSON writes all of the found subdomains into a
+// json map with IP adresses as keys. Example:
+//
+//	{
+//			"1.2.3.4": [
+//					{ "domain":"www.site.com", ...}
+//		 ...
+//	}
 func ExportSubdomainsToJSON(f *os.File) {
-	f.WriteString("[")
-	fmt.Println("these are all of the domains:")
-	res := []string{}
+	resultMap := make(map[string][]Subdomain)
+
+	// iterate over all domains
 	Subdomains.Range(func(key, value any) bool {
-		jsn, _ := json.Marshal(value)
-		res = append(res, string(jsn))
+
+		subd := value.(*Subdomain)
+		currIp := subd.Ip
+		if _, ok := resultMap[currIp]; !ok {
+			resultMap[currIp] = []Subdomain{
+				*subd,
+			}
+		} else {
+			resultMap[currIp] = append(resultMap[currIp], *subd)
+		}
+
 		return true
 	})
-	f.WriteString(strings.Join(res, ","))
-	f.WriteString("]")
+	cnt, _ := json.Marshal(resultMap)
+	_, err := f.Write(cnt)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
