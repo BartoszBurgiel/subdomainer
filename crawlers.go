@@ -122,7 +122,7 @@ func getSubdomains(html string) []string {
 
 // CrawlRapidDNS and gather all new subdomains
 func CrawlRapidDNS(domain string, wg *sync.WaitGroup) {
-	fmt.Println("starting rapid dns crawler...")
+	fmt.Println("- starting rapid dns crawler...")
 	wg.Add(1)
 	defer wg.Done()
 
@@ -172,7 +172,7 @@ func CrawlRapidDNS(domain string, wg *sync.WaitGroup) {
 
 // CrawlDNSDumpster and gather all subdomains and the ASN records
 func CrawlDNSDumpster(domain string, wg *sync.WaitGroup) {
-	fmt.Println("crawling dns dumpser...")
+	fmt.Println("- crawling dns dumpser...")
 
 	// First request to catch the CSRFToken for the query
 	cl := http.Client{}
@@ -234,7 +234,7 @@ func CrawlDNSDumpster(domain string, wg *sync.WaitGroup) {
 
 // CrawlHackertarget and extract the new subdomains
 func CrawlHackertarget(domain string, wg *sync.WaitGroup) {
-	fmt.Println("starting hacktertarget crawler...")
+	fmt.Println("- starting hacktertarget crawler...")
 	wg.Add(1)
 	defer wg.Done()
 	res, err := http.Get("https://api.hackertarget.com/hostsearch/?q=" + domain)
@@ -259,10 +259,10 @@ func CrawlHackertarget(domain string, wg *sync.WaitGroup) {
 // DeepCrawl iterares over all found domains and crawls over each subdomain using Crawl
 // The function targets both http and https endpoints of the subdomain
 func DeepCrawl(wg *sync.WaitGroup) {
-	fmt.Println("Starting the deep crawl...")
+	fmt.Println("- starting the deep crawl...")
 	Subdomains.Range(func(key, value any) bool {
 
-		fmt.Println("Deep crawl for", key.(string))
+		fmt.Println("- deep crawl for", key.(string))
 		Depth = 0
 		Crawl("https://"+key.(string), wg)
 		return true
@@ -271,7 +271,7 @@ func DeepCrawl(wg *sync.WaitGroup) {
 
 // CrawlAlienvault and extract the new subdomains as well as the ASN
 func CrawlAlienvault(domain string, wg *sync.WaitGroup) {
-	fmt.Println("Crawling Alienvault...")
+	fmt.Println("- crawling alienvault...")
 	resp, err := http.Get("https://otx.alienvault.com/api/v1/indicators/domain/" + domain + "/passive_dns")
 	if err != nil {
 		fmt.Println(err)

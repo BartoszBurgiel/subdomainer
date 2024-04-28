@@ -92,7 +92,8 @@ func init() {
 func main() {
 
 	wg.Add(1)
-	fmt.Println("starting the subdomainer... running the host")
+	fmt.Println("=== SUBDOMAINER ===")
+	fmt.Println("- analysing " + subdomainer.Domain)
 	subdomainer.Analyse(&subdomainer.Subdomain{Domain: subdomainer.Domain}, wg)
 	wg.Wait()
 	if shouldScrape {
@@ -103,29 +104,29 @@ func main() {
 	}
 
 	if dnsGerman {
-		fmt.Println("Querying german words...")
+		fmt.Println("- querying german words...")
 		wg.Add(1)
 		go subdomainer.QueryWordlist("../words/german.words", subdomainer.Domain, wg)
 	}
 
 	if customWords != "" {
-		fmt.Println("Querying custom words...")
+		fmt.Println("- querying custom words...")
 		wg.Add(1)
 		go subdomainer.QueryWordlist(customWords, subdomainer.Domain, wg)
 	}
 
 	if dnsList {
-		fmt.Println("Querying dns words...")
+		fmt.Println("- querying dns words...")
 		wg.Add(1)
 		go subdomainer.QueryWordlist("../words/top_dns.words", subdomainer.Domain, wg)
 	}
 
 	if shouldCrawl {
-		fmt.Println("Starting to crawl")
+		fmt.Println("- starting to crawl")
 		subdomainer.Crawl("https://www."+subdomainer.Domain, wg)
 	}
 
-	fmt.Println("Now we're waiting to finish...")
+	fmt.Println("Waiting to finish...")
 	wg.Wait()
 	if shouldDeepCrawl {
 		subdomainer.DeepCrawl(wg)
@@ -137,6 +138,7 @@ func main() {
 	}
 	fmt.Println("Scan finished!!!!")
 
+	fmt.Println("Generating output...")
 	outputFileDomain := strings.ReplaceAll(subdomainer.Domain, ".", "_")
 	if outputCSV {
 		csvFile, err := os.Create(outputFileDomain + "_result.csv")
@@ -156,7 +158,7 @@ func main() {
 		jsonFile.Close()
 
 	}
-	fmt.Println("found domains:")
+	fmt.Println("Found domains:")
 	subdomainCount := 0
 	subdomainer.Subdomains.Range(func(key, value any) bool {
 		fmt.Println(" -- ", key, ":", value)
@@ -164,5 +166,5 @@ func main() {
 		return true
 	})
 	fmt.Println("Total:", subdomainCount)
-	fmt.Println("the scan took", time.Since(startTime))
+	fmt.Println("The scan took", time.Since(startTime))
 }

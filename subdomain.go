@@ -105,13 +105,12 @@ func Analyse(s *Subdomain, wg *sync.WaitGroup) {
 		wildcard := "*." + s.Domain
 		if _, ok := Subdomains.Load(wildcard); !ok {
 			fmt.Println("\tgot new wildcard subdomain", dnsLookup("zimmerimmer4321."+s.Domain), "*."+s.Domain)
-			fmt.Println("and this is the wg", wg)
 			Subdomains.Store("*."+s.Domain, s)
 			return
 		}
 	}
 
-	fmt.Println("\tgot new subdomain", s)
+	fmt.Println("\t- new subdomain:", s)
 	Subdomains.Store(s.Domain, s)
 	fuzzNumbers(s.Domain, wg)
 	fuzzWWW(s.Domain, wg)
@@ -210,7 +209,7 @@ func isSubdomainOfWildcardDomain(s *Subdomain) bool {
 }
 
 func (sub Subdomain) String() string {
-	return fmt.Sprintf("%s %s %s %d %d %s %s %s", sub.Ip, sub.Domain, sub.ASN, sub.StatusCode, sub.ResponseLength, sub.ResponseHash, sub.Server, sub.HTMLTitle)
+	return fmt.Sprintf("%s | %s | %s | %s | %d", sub.Domain, sub.Ip, sub.HTMLTitle, sub.Server, sub.StatusCode)
 }
 
 func isWildcardSubdomain(domain string) bool {
@@ -264,6 +263,7 @@ func fuzzNumbers(domain string, wg *sync.WaitGroup) {
 	}
 	numberFuzzSubdomain.Store(fuzzRegex.ReplaceAllString(domain, "XXX"), true)
 	fuzzedSubdomains := fuzzNumberGenerator(domain)
+	fmt.Println("- beginning fuzzing of", domain)
 	for _, check := range fuzzedSubdomains {
 
 		ip := dnsLookup(check)
