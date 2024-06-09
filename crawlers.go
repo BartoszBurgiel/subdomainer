@@ -46,7 +46,10 @@ func Crawl(path string, wg *sync.WaitGroup) {
 	go analyseTLSCertificates(res.TLS, wg)
 	dom := getSubdomains(source)
 	for _, d := range dom {
-		sub := &Subdomain{Domain: strings.ToLower(d)}
+		sub := &Subdomain{
+			Domain:     strings.ToLower(d),
+			Occurrence: "Crawling",
+		}
 		wg.Add(1)
 		go Analyse(sub, wg)
 	}
@@ -81,7 +84,10 @@ func analyseTLSCertificates(t *tls.ConnectionState, wg *sync.WaitGroup) {
 		if d[0] == '*' {
 			continue
 		}
-		sub := &Subdomain{Domain: strings.ToLower(d)}
+		sub := &Subdomain{
+			Domain:     strings.ToLower(d),
+			Occurrence: "TLSCert",
+		}
 		wg.Add(1)
 		go Analyse(sub, wg)
 	}
@@ -163,7 +169,10 @@ func CrawlRapidDNS(domain string, wg *sync.WaitGroup) {
 		}
 
 		for _, dom := range domains {
-			sub := &Subdomain{Domain: strings.ToLower(dom)}
+			sub := &Subdomain{
+				Domain:     strings.ToLower(dom),
+				Occurrence: "RapidDNS",
+			}
 			wg.Add(1)
 			go Analyse(sub, wg)
 		}
@@ -218,14 +227,9 @@ func CrawlDNSDumpster(domain string, wg *sync.WaitGroup) {
 			continue
 		}
 
-		submatch := dnsDumpsterANSRegex.FindStringSubmatch(row)
-		if len(submatch) != 2 {
-			continue
-		}
-		ans := submatch[1]
 		sub := &Subdomain{
-			Domain: strings.ToLower(domain),
-			ASN:    ans,
+			Domain:     strings.ToLower(domain),
+			Occurrence: "DNSDumpster",
 		}
 		wg.Add(1)
 		go Analyse(sub, wg)
@@ -249,7 +253,10 @@ func CrawlHackertarget(domain string, wg *sync.WaitGroup) {
 			continue
 		}
 		dom = sp[0]
-		sub := &Subdomain{Domain: strings.ToLower(dom)}
+		sub := &Subdomain{
+			Domain:     strings.ToLower(dom),
+			Occurrence: "HackerTarget",
+		}
 		wg.Add(1)
 		go Analyse(sub, wg)
 	}
@@ -301,14 +308,10 @@ func CrawlAlienvault(domain string, wg *sync.WaitGroup) {
 			continue
 		}
 
-		asn := ""
-		if item["ans"] != nil {
-			asn = item["asn"].(string)
-		}
 		dom := item["hostname"].(string)
 		sub := &Subdomain{
-			Domain: strings.ToLower(dom),
-			ASN:    asn,
+			Occurrence: "AlienVault",
+			Domain:     strings.ToLower(dom),
 		}
 
 		wg.Add(1)

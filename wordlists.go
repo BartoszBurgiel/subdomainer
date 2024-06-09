@@ -33,8 +33,8 @@ func QueryWordlist(path, domain string, wg *sync.WaitGroup) {
 		scanned += int64(len(sub)) + 1
 		curr := sub + "." + domain
 
-		if ip := dnsLookup(curr); ip != "" {
-			sub := &Subdomain{Domain: strings.ToLower(curr), Ip: ip}
+		if ip := dnsLookup(curr); len(ip) > 0 {
+			sub := &Subdomain{Domain: strings.ToLower(curr), Ip: ip, Occurrence: "Wordlist " + path}
 			wg.Add(1)
 			go Analyse(sub, wg)
 		}

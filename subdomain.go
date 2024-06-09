@@ -44,14 +44,14 @@ func (sc *syncCounter) get(key string) int {
 var ipCounter syncCounter = syncCounter{m: make(map[string]int), mut: &sync.Mutex{}}
 
 type Subdomain struct {
-	Ip             string `json:"ip"`
-	Domain         string `json:"domain"`
-	ResponseHash   string `json:"hash"`
-	ResponseLength int    `json:"size"`
-	HTMLTitle      string `json:"title"`
-	StatusCode     int    `json:"statuscode"`
-	Server         string `json:"server"`
-	ASN            string `json:"asn"`
+	Ip             []whoisResult `json:"ip"`
+	Domain         string        `json:"domain"`
+	ResponseHash   string        `json:"hash"`
+	ResponseLength int           `json:"size"`
+	HTMLTitle      string        `json:"title"`
+	StatusCode     int           `json:"statuscode"`
+	Server         string        `json:"server"`
+	Occurrence     string        `json:"occurence"`
 }
 
 func Analyse(s *Subdomain, wg *sync.WaitGroup) {
@@ -66,8 +66,10 @@ func Analyse(s *Subdomain, wg *sync.WaitGroup) {
 		return
 	}
 
-	if ipCounter.get(s.Ip) > 75 {
-		return
+	for _, v := range s.Ip {
+		if ipCounter.get(v.Ip) > 75 {
+			return
+		}
 	}
 
 	if _, ok := Subdomains.Load(s.Domain); ok {
@@ -83,14 +85,17 @@ func Analyse(s *Subdomain, wg *sync.WaitGroup) {
 		//Subdomains.Store(dom, &Subdomain{Domain: dom, Ip: s.Ip})
 		return
 	}
-	if s.Ip == "" {
-		s.Ip = dnsLookup(s.Domain)
-		if s.Ip == "" && !FalsePositives {
+	if len(s.Ip) == 0 {
+		ips := dnsLookup(s.Domain)
+		if len(ips) == 0 && !FalsePositives {
 			return
 		}
+		s.Ip = ips
 	}
 
-	ipCounter.newInstance(s.Ip)
+	for _, v := range s.Ip {
+		ipCounter.newInstance(v.Ip)
+	}
 
 	cl := http.Client{
 		Timeout: time.Second * 2,
@@ -186,8 +191,11 @@ func getCommonSubdomain(s []*Subdomain) string {
 
 func isSubdomainAltServerWildcard(s *Subdomain) bool {
 
-	if ipCounter.get(s.Ip) > 25 {
-		return true
+	for _, v := range s.Ip {
+		if ipCounter.get(v.Ip) > 25 {
+			return true
+		}
+
 	}
 	return false
 }
@@ -199,8 +207,13 @@ func isSubdomainOfWildcardDomain(s *Subdomain) bool {
 		subs := "*." + strings.Join(elems[len(elems)-i:], ".")
 
 		if wild, ok := Subdomains.Load(subs); ok {
-			if wild.(*Subdomain).Ip == s.Ip {
-				return true
+			for _, v := range wild.(*Subdomain).Ip {
+				for _, vv := range s.Ip {
+
+					if v.Ip == vv.Ip {
+						return true
+					}
+				}
 			}
 		}
 	}
@@ -214,19 +227,19 @@ func (sub Subdomain) String() string {
 
 func isWildcardSubdomain(domain string) bool {
 	dummy := "z1mm3rpf74nz3."
-	return dnsLookup(dummy+domain) != ""
+	return len(dnsLookup(dummy+domain)) > 0
 }
 
 func fuzzWWW(domain string, wg *sync.WaitGroup) {
 	if strings.HasPrefix(domain, "www.") {
 		return
 	}
-	ip := ""
-	if ip = dnsLookup("www." + domain); ip == "" {
+	ip := []whoisResult{}
+	if ip = dnsLookup("www." + domain); len(ip) == 0 {
 		return
 	}
 	wg.Add(1)
-	go Analyse(&Subdomain{Domain: "www." + domain, Ip: ip}, wg)
+	go Analyse(&Subdomain{Domain: "www." + domain, Ip: ip, Occurrence: "WWW-Fuzzing"}, wg)
 }
 
 func fuzzMasks(domain string, wg *sync.WaitGroup) {
@@ -239,12 +252,12 @@ func fuzzMasks(domain string, wg *sync.WaitGroup) {
 				return
 			}
 		}
-		ip := ""
-		if ip = dnsLookup(mask + domain); ip == "" {
+		ip := []whoisResult{}
+		if ip = dnsLookup(mask + domain); len(ip) == 0 {
 			return
 		}
 		wg.Add(1)
-		go Analyse(&Subdomain{Domain: mask + domain, Ip: ip}, wg)
+		go Analyse(&Subdomain{Domain: mask + domain, Ip: ip, Occurrence: "Common Mask Fuzzing"}, wg)
 	}
 }
 
@@ -267,7 +280,7 @@ func fuzzNumbers(domain string, wg *sync.WaitGroup) {
 	for _, check := range fuzzedSubdomains {
 
 		ip := dnsLookup(check)
-		if ip == "" {
+		if len(ip) == 0 {
 			continue
 		}
 
@@ -276,8 +289,9 @@ func fuzzNumbers(domain string, wg *sync.WaitGroup) {
 			return
 		}
 		subd := &Subdomain{
-			Ip:     ip,
-			Domain: check,
+			Occurrence: "Number fuzzing",
+			Ip:         ip,
+			Domain:     check,
 		}
 		wg.Add(1)
 		go Analyse(subd, wg)
@@ -330,14 +344,14 @@ func substitute(mask, num string) string {
 }
 
 func ExportSubdomainsToCSV(f *os.File) {
-	f.WriteString("ip,domain,http,https,asn,title,server,status_code,response_length,response_hash\n")
+	f.WriteString("ip,domain,title,server,status_code,response_length,response_hash\n")
 	Subdomains.Range(func(key, value any) bool {
 		v := value.(*Subdomain)
 		domain := v.Domain
 		if domain == "" {
 			domain = key.(string)
 		}
-		fmt.Fprintf(f, "%s,%s,%s,%s,%s,%d,%d,%sd\n", v.Ip, domain, v.ASN, v.HTMLTitle, v.Server, v.StatusCode, v.ResponseLength, v.ResponseHash)
+		fmt.Fprintf(f, "%s,%s,%s,%s,%d,%d,%s\n", v.Ip, domain, v.HTMLTitle, v.Server, v.StatusCode, v.ResponseLength, v.ResponseHash)
 		return true
 	})
 }
@@ -351,20 +365,12 @@ func ExportSubdomainsToCSV(f *os.File) {
 //		 ...
 //	}
 func ExportSubdomainsToJSON(f *os.File) {
-	resultMap := make(map[string][]Subdomain)
+	resultMap := []Subdomain{}
 
 	// iterate over all domains
 	Subdomains.Range(func(key, value any) bool {
 
-		subd := value.(*Subdomain)
-		currIp := subd.Ip
-		if _, ok := resultMap[currIp]; !ok {
-			resultMap[currIp] = []Subdomain{
-				*subd,
-			}
-		} else {
-			resultMap[currIp] = append(resultMap[currIp], *subd)
-		}
+		resultMap = append(resultMap, *value.(*Subdomain))
 
 		return true
 	})
